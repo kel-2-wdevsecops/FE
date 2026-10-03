@@ -1,20 +1,24 @@
-# Axon Sales (FE)
+# Axon Sales Dashboard (FE)
 
-Antarmuka web untuk [Axon Sales API](https://github.com/kel-2-wdevsecops/BE), yaitu data penjualan Axon dari database `classicmodels`. Repo ini baru berisi **boilerplate**: kerangka aplikasi, login, kelola pengguna (admin), satu modul contoh (`offices`, menu "Kantor"), dan pipeline CI/CD. Modul data lainnya dibangun dengan pola yang sama.
+Kerangka (boilerplate) dashboard **publik** penjualan Axon dari database `classicmodels`, yang akan meniru tiga halaman laporan Power BI Axon: Ringkasan, Produk, dan Pertumbuhan. Tidak ada login: semua halaman terbuka, dan datanya hanya dibaca dari [Axon Sales API](https://github.com/kel-2-wdevsecops/BE). Spesifikasi isi tiap halaman dan definisi angkanya ada di bagian "Target dashboard" README BE.
 
-Stack: React 19, TypeScript, Vite 8, Tailwind v4, React Router 7, TanStack Query 5, Zustand, axios, Vitest. Strukturnya mengikuti Skopia FE.
+Repo ini baru berisi fondasi: shell aplikasi (sidebar, routing, layout responsif), client API, health check, komponen generik, nginx dengan header keamanan, dan pipeline CI/CD.
+
+Stack: React 19, TypeScript, Vite 8, Tailwind v4, React Router 7, TanStack Query 5, Recharts 3 (terpasang, belum dipakai), Zustand, axios, Vitest.
 
 ## Menjalankan di lokal
 
-1. Jalankan BE di `http://localhost:3008` (lihat README repo BE) dan buat admin pertama dengan `npm run db:seed` di BE.
+1. Jalankan BE di `http://localhost:3008` (lihat README repo BE).
 2. Install dependency, lalu jalankan:
    ```bash
    npm install
    npm run dev
    ```
-3. Buka `http://localhost:5173` dan masuk dengan akun admin tadi.
+3. Buka `http://localhost:5173`. Halaman Beranda menampilkan status API.
 
 FE selalu memanggil `/api/v1` di origin yang sama. Saat `npm run dev`, Vite meneruskannya ke BE lokal. Kalau BE tidak di `localhost:3008`, salin `.env.example` ke `.env.local` lalu isi `VITE_DEV_API_TARGET`.
+
+Setelah dependency berubah (`npm install`), restart `npm run dev`. Kalau tidak, browser bisa mendapat 504 "Outdated Optimize Dep" dan halaman kosong.
 
 ## Perintah
 
@@ -29,53 +33,40 @@ FE selalu memanggil `/api/v1` di origin yang sama. Saat `npm run dev`, Vite mene
 
 ## Struktur
 
-```
+```text
 src/
-  main.tsx        entry: QueryClient, Router, Toast, ConfirmModal
-  app/            App.tsx (routing + RequireAuth/RequireAdmin), navigation.ts,
-                  GlobalOverlays.tsx (semua modal form), queryClient.ts
-  api/            SATU-SATUNYA lapisan yang bicara ke BE: http.ts (axios,
-                  token, refresh), index.ts (endpoint), queryKeys.ts
-  hooks/          satu file per entity (react-query di atas api/)
-  components/     komponen yang tidak tahu entity apa pun: ui/, layout/,
-                  table/, feedback/
-  pages/<fitur>/  halaman + components/ milik satu fitur
-  store/          zustand: useAuthStore (sesi), useUiStore (pencarian, modal),
-                  useConfirmStore (konfirmasi)
-  lib/            fungsi murni (format, label, terjemahan pesan BE, dll.)
-  types/          tipe data FE
+  main.tsx        entry: QueryClient, Router
+  app/            App.tsx (routing), navigation.ts (menu sidebar), queryClient.ts
+  api/            SATU-SATUNYA lapisan yang bicara ke BE: http.ts (axios),
+                  index.ts (endpoint), queryKeys.ts
+  hooks/          react-query di atas api/ (useHealth sebagai contoh)
+  components/     komponen yang tidak tahu endpoint apa pun:
+                  layout/ (AppShell, Sidebar, PageHeader), table/ (DataTable),
+                  ui/ (Spinner, EmptyState), feedback/ (QueryState)
+  pages/<halaman>/ halaman + components/ miliknya (baru ada home/)
+  store/          zustand: useUiStore (drawer sidebar mobile)
+  lib/            fungsi murni + test (cn, versi, terjemahan pesan BE)
+  types/          tipe respons BE
 ```
 
-## Menambah modul (ikuti `offices`)
+## Menambah halaman
 
-1. **Tipe**: tambahkan `X` dan `XInput` di `src/types/index.ts`. Nama field ikut respons BE; kalau berbeda, terjemahkan di `api/index.ts`.
-2. **API**: endpoint di `src/api/index.ts` (`listXPage`, `getX`, `createX`, `updateX`, `deleteX`), dan key di `src/api/queryKeys.ts` (`xList`, `xById`, plus prefix `...All` untuk invalidasi).
-3. **Hook**: `src/hooks/useX.ts`, salin `useOffices.ts`. Halaman detail dan modal ubah **wajib** mengambil satu item lewat endpoint detail, bukan `.find()` dari daftar.
-4. **Halaman**: `pages/x/XPage.tsx` (daftar), `XDetailPage.tsx` (detail, hanya baca), `components/XTable.tsx`, `XForm.tsx`, `XFormModal.tsx`.
-5. **Sambungkan**:
-   - Route di `App.tsx`.
-   - Menu di `navigation.ts`, dan path daftar di `WIDE_PATHS` (`AppShell.tsx`).
-   - `xFormTarget` di `useUiStore` (juga di `resetOverlays`).
-   - `<XFormModal />` di `GlobalOverlays.tsx`.
-   - Path detail di `lib/entityLinks.ts`.
-6. **Pesan BE**: pesan error baru dari BE (Inggris) diterjemahkan di `lib/beMessage.ts`.
+1. **Tipe** respons BE di `src/types/index.ts`.
+2. **API**: endpoint di `src/api/index.ts`, mis. `overview: (filter) => http.get<Overview>('/dashboard/overview', { ...filter })`. Array dikirim sebagai key berulang (`productLine=a&productLine=b`). Key react-query di `src/api/queryKeys.ts`.
+3. **Hook** di `src/hooks/`. Data dashboard tidak berubah, jadi `staleTime: Infinity`; pakai `placeholderData: keepPreviousData` supaya grafik lama tetap tampil saat filter berganti.
+4. **Halaman** di `src/pages/<nama>/`, bungkus data dengan `QueryState` (loader + pesan gagal). Daftarkan route di `App.tsx` dan menunya di `navigation.ts`.
+5. **Filter** sebaiknya disimpan di query string URL (`useSearchParams`), supaya tampilan bisa dibagikan sebagai tautan.
 
-Aturan yang perlu diingat:
-- Buat/ubah selalu lewat modal (`setXFormTarget({})` / `({ id })`), bukan route. Hapus selalu lewat `confirmAction()`.
-- Error validasi 422 diambil dengan `getFieldErrors()`; key-nya nama field BE.
-- Tombol khusus admin disembunyikan dengan `useIsAdmin()`. Ini hanya tampilan; otorisasi sebenarnya di BE.
+Aturan:
+- Format angka Indonesia (`Intl.NumberFormat('id-ID')`); uang data classicmodels dalam dolar AS.
 - Warna lewat token di `src/index.css` (`bg-accent`, `text-ink-muted`, ...), bukan `gray-*`.
-
-## Auth
-
-- Login menyimpan access dan refresh token di `useAuthStore` (localStorage).
-- `api/http.ts` menempelkan token ke setiap request. Saat 401, http.ts meminta access token baru **sekali** lewat `/auth/refresh` lalu mengulang request. Kalau refresh ditolak (token dicabut atau kedaluwarsa), sesi berakhir dan pengguna diarahkan ke `/masuk?next=...`.
-- Keluar memanggil `/auth/logout` supaya BE mencabut semua token akun itu.
+- **CSP nginx ketat** (`style-src 'self'`, `font-src 'self'`, `script-src 'self'`): tanpa Google Fonts/CDN, dan tanpa library yang menyuntikkan tag `<style>` saat runtime. Recharts aman (gaya dipasang lewat React). Cek konsol browser di image produksi setelah menambah dependency.
+- Fungsi murni (format, parse filter, olah data grafik) di `src/lib/` dengan test `*.test.ts`.
 
 ## Produksi & keamanan
 
 Image produksi berisi nginx-unprivileged (non-root, port 8080) dan hasil build statis:
-- **Header keamanan** (`nginx/default.conf.template`): CSP ketat (script hanya dari origin sendiri), `X-Frame-Options: DENY`, `nosniff`, `Referrer-Policy`, `Permissions-Policy`.
+- **Header keamanan** (`nginx/default.conf.template`): CSP ketat (script dan style hanya dari origin sendiri, tanpa `'unsafe-inline'`), `X-Frame-Options: DENY`, `nosniff`, `Referrer-Policy`, `Permissions-Policy`.
 - **Fallback SPA**: semua route dijawab `index.html` (tidak di-cache). Aset ber-hash di-cache selamanya.
 - **Proxy `/api/`** ke BE (`API_UPSTREAM`, default `http://host.docker.internal:3008`).
 - `/version.json` dipakai health check deploy.
