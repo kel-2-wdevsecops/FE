@@ -3,4 +3,5 @@
 // Prefix `...All` dipakai mutation untuk meng-invalidate semua variannya.
 export const queryKeys = {
   health: ['health'] as const,
+  me: ['me'] as const,
 };

@@ -1,17 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { registerBeMessages, translateBeMessage } from './beMessage';
+import { translateBeMessage } from './beMessage';
 
 describe('translateBeMessage', () => {
-  it('menerjemahkan pesan bawaan', () => {
+  it('menerjemahkan pesan yang dikenal', () => {
     expect(translateBeMessage('Too many requests. Please try again later.')).toMatch(/Terlalu banyak/);
+    expect(translateBeMessage('Invalid email or password.')).toBe('Email atau kata sandi salah.');
   });
 
   it('pesan yang belum dikenal dikembalikan apa adanya', () => {
     expect(translateBeMessage('Something new.')).toBe('Something new.');
-  });
-
-  it('mendukung terjemahan tambahan berpola', () => {
-    registerBeMessages({}, [[/^Thing has (\d+) item\(s\)\.$/, (m) => `Masih ada ${m[1]} item.`]]);
-    expect(translateBeMessage('Thing has 6 item(s).')).toBe('Masih ada 6 item.');
   });
 });

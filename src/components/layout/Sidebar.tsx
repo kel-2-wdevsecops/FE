@@ -1,8 +1,10 @@
 import { NAV } from '@/app/navigation';
+import { useIsAdmin } from '@/hooks/useCurrentUser';
 import { AppVersion } from '@/components/ui/AppVersion';
 import { cn } from '@/lib/cn';
 import { useUiStore } from '@/store/useUiStore';
 import { SidebarNavItem } from './SidebarNavItem';
+import { SidebarUser } from './SidebarUser';
 
 interface SidebarProps {
   onNavigate?: () => void;
@@ -10,6 +12,7 @@ interface SidebarProps {
 
 export function Sidebar({ onNavigate }: SidebarProps) {
   const open = useUiStore((s) => s.mobileSidebarOpen);
+  const isAdmin = useIsAdmin();
 
   return (
     <aside
@@ -29,14 +32,17 @@ export function Sidebar({ onNavigate }: SidebarProps) {
       </div>
 
       <nav className="flex flex-col gap-0.5">
-        {NAV.map((entry) => (
+        {NAV.filter((entry) => !entry.adminOnly || isAdmin).map((entry) => (
           <SidebarNavItem key={entry.to} to={entry.to} label={entry.label} icon={entry.icon} onClick={onNavigate} />
         ))}
       </nav>
 
       <div className="flex-1" />
 
-      <AppVersion className="px-2.5" />
+      <div className="flex flex-col gap-2">
+        <SidebarUser onNavigate={onNavigate} />
+        <AppVersion className="px-2.5" />
+      </div>
     </aside>
   );
 }

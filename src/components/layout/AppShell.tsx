@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { useLocation } from 'react-router-dom';
 import { GlobalOverlays } from '@/app/GlobalOverlays';
+import { useSyncCurrentUser } from '@/hooks/useAuth';
 import { cn } from '@/lib/cn';
 import { useUiStore } from '@/store/useUiStore';
 import { MenuIcon } from './icons';
@@ -15,6 +16,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { pathname } = useLocation();
   const wide = WIDE_PATHS.has(pathname);
   const setMobileSidebarOpen = useUiStore((s) => s.setMobileSidebarOpen);
+  useSyncCurrentUser();
 
   return (
     <div className="flex min-h-screen items-stretch bg-canvas">

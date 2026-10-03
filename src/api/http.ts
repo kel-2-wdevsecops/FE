@@ -1,4 +1,7 @@
-import axios, { type AxiosError } from 'axios';
+import axios, { type AxiosError, type InternalAxiosRequestConfig } from 'axios';
+import toast from 'react-hot-toast';
+import { LOGIN_PATH, loginPathFor } from '@/lib/loginRedirect';
+import { useAuthStore } from '@/store/useAuthStore';
 
 /** Prefix API. Default origin yang sama (dev: proxy Vite, produksi: proxy nginx). */
 export const BASE_URL = import.meta.env.VITE_API_URL || '/api/v1';
@@ -24,13 +27,72 @@ export interface ApiEnvelope<T> {
 
 export const client = axios.create({ baseURL: BASE_URL, timeout: 15_000 });
 
+client.interceptors.request.use((config) => {
+  const token = useAuthStore.getState().accessToken;
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
+});
+
+// Endpoint yang 401-nya berarti "kredensial salah", bukan "sesi habis".
+const isAuthEndpoint = (url?: string) => url === '/auth/login' || url === '/auth/refresh';
+
+// Satu refresh untuk semua request yang gagal bersamaan: tanpa ini, lima
+// request paralel yang kena 401 memanggil /auth/refresh lima kali.
+let refreshing: Promise<string> | null = null;
+
+async function refreshAccessToken(): Promise<string> {
+  const refreshToken = useAuthStore.getState().refreshToken;
+  if (!refreshToken) throw new Error('Tidak ada refresh token.');
+  // axios polos, bukan `client`, supaya tidak masuk interceptor ini lagi.
+  const res = await axios.post<ApiEnvelope<{ access_token: string }>>(`${BASE_URL}/auth/refresh`, {
+    refresh_token: refreshToken,
+  });
+  const token = res.data.data?.access_token;
+  if (!token) throw new Error('Refresh gagal.');
+  useAuthStore.getState().setAccessToken(token);
+  return token;
+}
+
+let sessionEnding = false;
+
+/** Sesi tidak bisa dipulihkan: hapus, beri tahu sekali, kembali ke halaman masuk. */
+function endSession() {
+  useAuthStore.getState().clearSession();
+  if (sessionEnding || globalThis.location.pathname === LOGIN_PATH) return;
+  sessionEnding = true;
+  toast.error('Sesi berakhir. Silakan masuk kembali.');
+  const back = globalThis.location.pathname + globalThis.location.search;
+  // Muat ulang penuh: cache react-query milik sesi lama ikut terbuang.
+  setTimeout(() => globalThis.location.replace(loginPathFor(back)), 1200);
+}
+
 client.interceptors.response.use(
   (res) => {
     const json = res.data as ApiEnvelope<unknown>;
     if (!json?.success) throw new Error(json?.message ?? `Request failed (${res.status})`);
     return res;
   },
-  (err: AxiosError<ApiEnvelope<unknown>>) => {
+  async (err: AxiosError<ApiEnvelope<unknown>>) => {
+    const original = err.config as (InternalAxiosRequestConfig & { _retried?: boolean }) | undefined;
+
+    // Access token kedaluwarsa: minta yang baru sekali, lalu ulangi request.
+    // Refresh token yang sudah dicabut (logout di perangkat lain, ganti kata
+    // sandi) ditolak BE, dan sesi diakhiri di bawah.
+    if (err.response?.status === 401 && original && !original._retried && !isAuthEndpoint(original.url)) {
+      original._retried = true;
+      try {
+        refreshing ??= refreshAccessToken().finally(() => {
+          refreshing = null;
+        });
+        original.headers.Authorization = `Bearer ${await refreshing}`;
+        return client.request(original);
+      } catch {
+        endSession();
+      }
+    } else if (err.response?.status === 401 && !isAuthEndpoint(original?.url)) {
+      endSession();
+    }
+
     // Pesan dari BE lebih berguna daripada "Request failed with status code 409".
     if (err.response?.data?.message) err.message = err.response.data.message;
     return Promise.reject(err);

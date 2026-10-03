@@ -9,3 +9,22 @@ export interface Health {
   version: string;
   uptime: number;
 }
+
+export type UserRole = 'admin' | 'staff';
+
+/** Akun login API (tabel `users`, BE: formatUser). */
+export interface User {
+  id: string;
+  email: string;
+  name: string;
+  role: UserRole;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TokenPair {
+  access_token: string;
+  refresh_token: string;
+  token_type: 'Bearer';
+  expires_in: number;
+}
