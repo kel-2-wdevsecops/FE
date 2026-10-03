@@ -22,6 +22,14 @@ export interface User {
   updatedAt: string;
 }
 
+/** Body POST/PUT /users. Saat ubah, `password` kosong = tidak diganti. */
+export interface UserInput {
+  email: string;
+  name: string;
+  role: UserRole;
+  password: string;
+}
+
 export interface TokenPair {
   access_token: string;
   refresh_token: string;

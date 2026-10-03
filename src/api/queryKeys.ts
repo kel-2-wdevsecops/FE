@@ -4,4 +4,9 @@
 export const queryKeys = {
   health: ['health'] as const,
   me: ['me'] as const,
+
+  usersList: (search: string) => ['users-list', search] as const,
+  userById: (id?: string) => ['user-by-id', id ?? 'none'] as const,
+  usersListAll: ['users-list'] as const,
+  userByIdAll: ['user-by-id'] as const,
 };

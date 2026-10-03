@@ -1,5 +1,5 @@
 import type { ComponentType, SVGProps } from 'react';
-import { HomeIcon } from '@/components/layout/icons';
+import { HomeIcon, UsersNavIcon } from '@/components/layout/icons';
 
 export interface NavEntry {
   to: string;
@@ -10,4 +10,7 @@ export interface NavEntry {
 }
 
 /** Menu utama sidebar. Halaman daftar baru juga didaftarkan di WIDE_PATHS (AppShell). */
-export const NAV: NavEntry[] = [{ to: '/', label: 'Beranda', icon: HomeIcon }];
+export const NAV: NavEntry[] = [
+  { to: '/', label: 'Beranda', icon: HomeIcon },
+  { to: '/pengguna', label: 'Pengguna', icon: UsersNavIcon, adminOnly: true },
+];

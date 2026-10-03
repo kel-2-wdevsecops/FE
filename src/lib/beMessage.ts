@@ -16,6 +16,12 @@ const EXACT: Record<string, string> = {
   'Current password does not match.': 'Kata sandi saat ini salah.',
   'Session is no longer valid. Please log in again.': 'Sesi berakhir. Silakan masuk kembali.',
   'Token has expired. Please log in again.': 'Sesi berakhir. Silakan masuk kembali.',
+
+  // Users
+  'Email is already registered.': 'Email sudah dipakai akun lain.',
+  'Cannot remove the last admin.': 'Admin terakhir tidak bisa dihapus atau diturunkan perannya.',
+  'You cannot delete your own account.': 'Anda tidak bisa menghapus akun sendiri.',
+  'User not found.': 'Pengguna tidak ditemukan.',
 };
 
 const PATTERNS: [RegExp, (m: RegExpMatchArray) => string][] = [];

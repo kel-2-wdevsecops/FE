@@ -1,5 +1,6 @@
 import { useLayoutEffect } from 'react';
 import { useLocation } from 'react-router-dom';
+import { UserFormModal } from '@/pages/users/components/UserFormModal';
 import { useUiStore } from '@/store/useUiStore';
 
 /**
@@ -15,5 +16,9 @@ export function GlobalOverlays() {
   const resetOverlays = useUiStore((s) => s.resetOverlays);
   useLayoutEffect(() => resetOverlays(), [pathname, resetOverlays]);
 
-  return null;
+  return (
+    <>
+      <UserFormModal />
+    </>
+  );
 }

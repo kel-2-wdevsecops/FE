@@ -5,6 +5,8 @@ import { loginPathFor } from '@/lib/loginRedirect';
 import { AccountPage } from '@/pages/account/AccountPage';
 import { HomePage } from '@/pages/home/HomePage';
 import { LoginPage } from '@/pages/login/LoginPage';
+import { UserDetailPage } from '@/pages/users/UserDetailPage';
+import { UsersPage } from '@/pages/users/UsersPage';
 import { useAuthStore } from '@/store/useAuthStore';
 
 /** Ruang kerja butuh sesi login; tanpa sesi -> /masuk?next=<halaman ini>. */
@@ -38,6 +40,8 @@ export function App() {
               <Routes>
                 <Route path="/" element={<HomePage />} />
                 <Route path="/akun" element={<AccountPage />} />
+                <Route path="/pengguna" element={<RequireAdmin><UsersPage /></RequireAdmin>} />
+                <Route path="/pengguna/:id" element={<RequireAdmin><UserDetailPage /></RequireAdmin>} />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
             </AppShell>

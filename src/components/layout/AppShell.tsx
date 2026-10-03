@@ -10,7 +10,7 @@ import { Sidebar } from './Sidebar';
 
 // Halaman daftar (tabel) mendapat kontainer lebar; halaman detail/form tetap
 // sempit karena lebih ke bacaan. Setiap route daftar baru WAJIB didaftarkan.
-const WIDE_PATHS = new Set<string>([]);
+const WIDE_PATHS = new Set<string>(['/pengguna']);
 
 export function AppShell({ children }: { children: ReactNode }) {
   const { pathname } = useLocation();
