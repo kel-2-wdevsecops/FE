@@ -17,9 +17,11 @@ server {
     # tidak mewariskan add_header ke location yang punya add_header sendiri,
     # sehingga semua header ini hilang di location itu. Cache diatur dengan
     # `expires`, yang bukan add_header.
-    # style-src 'unsafe-inline': react-hot-toast menyuntikkan <style>. Script
-    # tetap hanya dari origin sendiri.
-    add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'" always;
+    # Script DAN style hanya dari origin sendiri, tanpa 'unsafe-inline'.
+    # Atribut `style` yang dipasang React/Recharts lewat JavaScript (CSSOM)
+    # tidak diatur CSP, jadi grafik tetap jalan. Library baru yang
+    # menyuntikkan tag <style> akan diblokir: cek konsol browser.
+    add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'" always;
     add_header X-Content-Type-Options "nosniff" always;
     add_header X-Frame-Options "DENY" always;
     add_header Referrer-Policy "strict-origin-when-cross-origin" always;
@@ -55,7 +57,7 @@ server {
         try_files $uri =404;
     }
 
-    # SPA: route apa pun (/kantor/1, /pengguna, ...) dijawab index.html, yang
+    # SPA: route apa pun (/produk, /pertumbuhan, ...) dijawab index.html, yang
     # selalu diambil ulang supaya rilis baru langsung terpakai.
     location / {
         expires -1;

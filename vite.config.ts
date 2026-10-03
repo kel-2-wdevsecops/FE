@@ -40,6 +40,23 @@ export default defineConfig(({ mode }) => {
         '/api': { target: env.VITE_DEV_API_TARGET || 'http://localhost:3008', changeOrigin: true },
       },
     },
+    build: {
+      rolldownOptions: {
+        output: {
+          // Library grafik (recharts + d3 + redux toolkit-nya) jarang berubah,
+          // jadi dipisah dari kode aplikasi: rilis FE baru tidak memaksa
+          // browser mengunduh ulang ~420 kB yang sama. React ikut dipisah.
+          codeSplitting: {
+            groups: [
+              { name: 'charts', test: /node_modules[\\/](recharts|d3-[^\\/]+|victory-vendor|@reduxjs|immer|reselect|es-toolkit|decimal\.js-light|eventemitter3)[\\/]/ },
+              { name: 'react', test: /node_modules[\\/](react|react-dom|react-router|react-router-dom|scheduler|@tanstack)[\\/]/ },
+            ],
+          },
+        },
+      },
+      // Chunk grafik memang ~420 kB sebelum gzip (~120 kB gzip).
+      chunkSizeWarningLimit: 600,
+    },
     test: {
       include: ['src/**/*.test.ts'],
       environment: 'node',
