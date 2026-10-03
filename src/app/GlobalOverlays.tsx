@@ -1,5 +1,6 @@
 import { useLayoutEffect } from 'react';
 import { useLocation } from 'react-router-dom';
+import { OfficeFormModal } from '@/pages/offices/components/OfficeFormModal';
 import { UserFormModal } from '@/pages/users/components/UserFormModal';
 import { useUiStore } from '@/store/useUiStore';
 
@@ -18,6 +19,7 @@ export function GlobalOverlays() {
 
   return (
     <>
+      <OfficeFormModal />
       <UserFormModal />
     </>
   );

@@ -1,5 +1,5 @@
 import { fetchPage, http, type ApiMeta } from './http';
-import type { Health, TokenPair, User, UserInput } from '@/types';
+import type { Health, Office, OfficeInput, TokenPair, User, UserInput } from '@/types';
 
 /**
  * Satu-satunya lapisan yang tahu endpoint BE. Alur wajib satu arah:
@@ -26,4 +26,15 @@ export const api = {
   /** `password` diisi = reset kata sandi oleh admin; semua sesi akun itu dicabut BE. */
   updateUser: (id: string, patch: Partial<UserInput>) => http.put<User>(`/users/${id}`, patch),
   deleteUser: (id: string) => http.del<null>(`/users/${id}`),
+
+  // ── Offices ─────────────────────────────────────────────────────────────────
+  // Kunci kantor = officeCode (string bebas), jadi selalu di-encode di path.
+  listOfficesPage: (params: { page: number; search?: string }): Promise<{ data: Office[]; meta: ApiMeta }> =>
+    fetchPage<Office>('/offices', { page: params.page, per_page: 20, search: params.search }),
+  getOffice: (code: string) => http.get<Office>(`/offices/${encodeURIComponent(code)}`),
+  createOffice: (input: OfficeInput) => http.post<Office>('/offices', input),
+  /** Kode kantor tidak bisa diubah (dirujuk karyawan), jadi tidak ikut dikirim. */
+  updateOffice: (code: string, patch: Partial<Omit<OfficeInput, 'officeCode'>>) =>
+    http.put<Office>(`/offices/${encodeURIComponent(code)}`, patch),
+  deleteOffice: (code: string) => http.del<null>(`/offices/${encodeURIComponent(code)}`),
 };

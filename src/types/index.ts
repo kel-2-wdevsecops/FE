@@ -30,6 +30,27 @@ export interface UserInput {
   password: string;
 }
 
+/** Kantor cabang Axon (tabel `offices`, BE: offices.service formatOffice). */
+export interface Office {
+  officeCode: string;
+  city: string;
+  phone: string;
+  addressLine1: string;
+  addressLine2: string | null;
+  state: string | null;
+  country: string;
+  postalCode: string;
+  territory: string;
+  /** Jumlah karyawan di kantor ini (dihitung BE). */
+  employeeCount: number;
+}
+
+/** Body POST/PUT /offices. Opsional dikirim '' -> BE menyimpan NULL. */
+export type OfficeInput = Omit<Office, 'employeeCount' | 'addressLine2' | 'state'> & {
+  addressLine2: string;
+  state: string;
+};
+
 export interface TokenPair {
   access_token: string;
   refresh_token: string;

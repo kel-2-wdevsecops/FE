@@ -22,9 +22,22 @@ const EXACT: Record<string, string> = {
   'Cannot remove the last admin.': 'Admin terakhir tidak bisa dihapus atau diturunkan perannya.',
   'You cannot delete your own account.': 'Anda tidak bisa menghapus akun sendiri.',
   'User not found.': 'Pengguna tidak ditemukan.',
+
+  // Offices
+  'Office code is already used.': 'Kode kantor sudah dipakai kantor lain.',
+  'Office not found.': 'Kantor tidak ditemukan.',
+
+  // Foreign key classicmodels (ON DELETE RESTRICT), lihat error middleware BE.
+  'Operation violates a relation: the referenced data does not exist or is still in use.':
+    'Data ini masih dipakai data lain, atau data yang dirujuk tidak ada.',
 };
 
-const PATTERNS: [RegExp, (m: RegExpMatchArray) => string][] = [];
+const PATTERNS: [RegExp, (m: RegExpMatchArray) => string][] = [
+  [
+    /^Office still has (\d+) employee\(s\)\.$/,
+    (m) => `Kantor masih punya ${m[1]} karyawan. Pindahkan karyawannya ke kantor lain dulu.`,
+  ],
+];
 
 export function translateBeMessage(message: string): string {
   if (EXACT[message]) return EXACT[message];

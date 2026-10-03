@@ -12,14 +12,20 @@ interface FieldProps {
 
 export function Field({ label, hint, error, children, className }: FieldProps) {
   return (
-    <label className={cn('flex min-w-0 flex-col gap-1.5', className)}>
-      <span className="text-[12.5px] text-ink-muted">{label}</span>
-      {children}
+    <div className={cn('flex min-w-0 flex-col gap-1.5', className)}>
+      {/* Hint/error sengaja di luar <label>: di dalamnya, teks itu ikut menjadi
+          nama aksesibel isian ("Kode kantor Unik, maksimal 10 karakter."). */}
+      <label className="flex min-w-0 flex-col gap-1.5">
+        <span className="text-[12.5px] text-ink-muted">{label}</span>
+        {children}
+      </label>
       {error ? (
-        <span className="text-[11.5px] text-red-600">{error}</span>
+        <span role="alert" className="text-[11.5px] text-red-600">
+          {error}
+        </span>
       ) : (
         hint && <span className="text-[11.5px] text-ink-faint">{hint}</span>
       )}
-    </label>
+    </div>
   );
 }

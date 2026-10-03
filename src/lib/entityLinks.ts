@@ -3,4 +3,5 @@
  * di tempat lain. Hanya path MELIHAT detail; buat/ubah lewat modal
  * (`useUiStore` `*FormTarget`).
  */
+export const officePath = (code: string) => `/kantor/${encodeURIComponent(code)}`;
 export const userPath = (id: string) => `/pengguna/${id}`;
