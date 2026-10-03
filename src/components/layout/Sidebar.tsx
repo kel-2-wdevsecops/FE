@@ -1,10 +1,9 @@
 import { NAV } from '@/app/navigation';
-import { useIsAdmin } from '@/hooks/useCurrentUser';
 import { AppVersion } from '@/components/ui/AppVersion';
+import { useHealth } from '@/hooks/useHealth';
 import { cn } from '@/lib/cn';
 import { useUiStore } from '@/store/useUiStore';
 import { SidebarNavItem } from './SidebarNavItem';
-import { SidebarUser } from './SidebarUser';
 
 interface SidebarProps {
   onNavigate?: () => void;
@@ -12,7 +11,7 @@ interface SidebarProps {
 
 export function Sidebar({ onNavigate }: SidebarProps) {
   const open = useUiStore((s) => s.mobileSidebarOpen);
-  const isAdmin = useIsAdmin();
+  const health = useHealth();
 
   return (
     <aside
@@ -27,21 +26,24 @@ export function Sidebar({ onNavigate }: SidebarProps) {
         </span>
         <div className="min-w-0">
           <div className="truncate text-[14.5px] font-semibold tracking-[-0.01em]">Axon Sales</div>
-          <div className="mt-0.5 truncate text-[12px] text-ink-faint">Classic Models</div>
+          <div className="mt-0.5 truncate text-[12px] text-ink-faint">Classic Cars Analysis</div>
         </div>
       </div>
 
-      <nav className="flex flex-col gap-0.5">
-        {NAV.filter((entry) => !entry.adminOnly || isAdmin).map((entry) => (
+      <nav className="flex flex-col gap-0.5" aria-label="Halaman dashboard">
+        {NAV.map((entry) => (
           <SidebarNavItem key={entry.to} to={entry.to} label={entry.label} icon={entry.icon} onClick={onNavigate} />
         ))}
       </nav>
 
       <div className="flex-1" />
 
-      <div className="flex flex-col gap-2">
-        <SidebarUser onNavigate={onNavigate} />
-        <AppVersion className="px-2.5" />
+      <div className="flex flex-col gap-1 px-2.5 text-[11.5px] text-ink-faint">
+        <span>Sumber: database classicmodels</span>
+        <AppVersion />
+        <span className="tnum">
+          API {health.data ? `v${health.data.version}` : health.isError ? 'tidak terjangkau' : '…'}
+        </span>
       </div>
     </aside>
   );
