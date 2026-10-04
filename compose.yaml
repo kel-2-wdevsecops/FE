@@ -1,0 +1,26 @@
+services:
+  FE:
+    # Tag versi yang jalan (mis. 1.2.0) ditulis workflow deploy sebagai
+    # FE_TAG di .env server (D:\.server\kuliah\d4\devsecops\uts\fe\.env);
+    # compose membaca .env yang sama untuk interpolasi. Tanpa FE_TAG (mis.
+    # saat validasi di CI) jatuh ke :latest.
+    image: ghcr.io/kel-2-wdevsecops/fe:${FE_TAG:-latest}
+    # Health check deploy.yml memanggil http://localhost:3009/version.json dari
+    # host, jadi port wajib di-publish. Kalau akses publik lewat reverse
+    # proxy/tunnel di mesin yang sama, ganti menjadi "127.0.0.1:3009:8080".
+    ports:
+      - "3009:8080"
+    restart: unless-stopped
+    # BE (repo BE, port 3008) berjalan di host yang sama; dari dalam container
+    # host dijangkau lewat host.docker.internal (bawaan Docker Desktop; baris
+    # ini untuk Docker Engine di Linux).
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      # Tujuan proxy /api/ di nginx (nginx/default.conf.template).
+      API_UPSTREAM: http://host.docker.internal:3008
+    # nginx-unprivileged tidak butuh capability apa pun (port 8080, user 101).
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true

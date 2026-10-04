@@ -1,0 +1,15 @@
+# Dependency & hasil build dari host tidak boleh masuk image: `COPY . .` di
+# Dockerfile akan menimpa node_modules hasil `npm ci` di Alpine dengan milik
+# host (binari esbuild/rollup untuk OS lain).
+node_modules
+dist
+coverage
+
+# Rahasia & konfigurasi lokal. Build di CI juga tidak punya .env.
+.env
+.env.*
+
+.git
+.github
+.husky
+.vscode

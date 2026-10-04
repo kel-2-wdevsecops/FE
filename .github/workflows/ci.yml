@@ -1,0 +1,127 @@
+# CI: gerbang kualitas dan keamanan. Build untuk produksi terjadi lagi di
+# Dockerfile; di sini memastikan kodenya benar, ter-build, dan aman.
+# Berjalan di dua tempat:
+# - setiap pull request ke main, supaya kesalahan ketahuan sebelum merge;
+# - dipanggil release.yml (workflow_call) di setiap push ke main, SEBELUM
+#   release-please. Gerbang inilah yang mencegah kode yang gagal dirilis atau
+#   sampai ke produksi.
+#
+# Semua action di-pin ke SHA commit (tag bisa dipindah pemiliknya, lihat kasus
+# tj-actions/trivy-action); komentar di belakangnya versi yang dimaksud.
+# Dependabot (.github/dependabot.yml) yang menaikkannya.
+
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_call:
+
+permissions:
+  contents: read
+
+# Push baru ke PR yang sama membatalkan run lama. Saat dipanggil release.yml,
+# group-nya run_id (unik) dan tidak pernah dibatalkan: run itu gerbang rilis.
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  verify:
+    name: Lint, test, typecheck & build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout kode
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Riwayat lengkap, supaya commitlint bisa membaca semua commit di PR.
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependency
+        run: npm ci --no-audit --no-fund
+
+      # Format pesan commit (commitlint.config.js). release-please menentukan
+      # versi & changelog dari setiap commit di main, dan setelah di-merge
+      # pesannya tidak bisa diperbaiki lagi, jadi diperiksa di PR.
+      - name: Commit message
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: npx commitlint --from "$BASE_SHA" --to "$HEAD_SHA" --verbose
+
+      - name: Lint
+        run: npm run lint
+
+      # Kerentanan di dependency produksi (yang ikut ke bundle browser).
+      - name: Audit dependency produksi
+        run: npm audit --omit=dev --audit-level=high
+
+      # Unit test (Vitest, file *.test.ts di samping kodenya). Tidak ikut ke
+      # bundle: Vite hanya membundel file yang di-import aplikasi.
+      - name: Test
+        run: npm test
+
+      # `build` = `tsc -b && vite build`, sama dengan yang dijalankan Dockerfile.
+      - name: Typecheck & build
+        run: npm run build
+
+  # SAST (Semgrep), secret scan (Gitleaks), SCA (Trivy fs) dan SBOM. Semua
+  # memblokir kecuali SBOM. Temuan Semgrep yang memang salah alarm ditandai di
+  # kodenya dengan `// nosemgrep: <rule-id>` beserta alasannya, temuan
+  # Gitleaks dengan `.gitleaksignore`, bukan dengan mematikan job ini.
+  security:
+    name: Security (SAST, Secret Scan, SCA, SBOM)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout kode
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Gitleaks memindai seluruh riwayat commit, bukan hanya isi terakhir.
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: SAST (Semgrep)
+        run: >-
+          docker run --rm -v "$PWD:/src" -w /src
+          semgrep/semgrep:1.179.0@sha256:cab19964e6c93019934252a9cd591d9b27df1e5b5d1734b26f4069ae51c295f8
+          semgrep scan --config p/owasp-top-ten --config p/react --error --metrics off
+
+      # CLI lewat image, bukan gitleaks-action: action itu butuh lisensi
+      # berbayar untuk repo milik organisasi. --user menyamakan pemilik file
+      # supaya git di dalam container tidak menolak repo ("dubious ownership").
+      - name: Secret scan (Gitleaks)
+        run: >-
+          docker run --rm --user "$(id -u):$(id -g)" -v "$PWD:/repo"
+          ghcr.io/gitleaks/gitleaks:v8.30.1@sha256:c00b6bd0aeb3071cbcb79009cb16a60dd9e0a7c60e2be9ab65d25e6bc8abbb7f
+          git /repo --redact --verbose
+
+      - name: SCA (Trivy fs)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          version: v0.75.0
+          scanners: vuln
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'
+
+      # SBOM dependency (CycloneDX), disimpan sebagai artifact run. SBOM image
+      # dibuat terpisah oleh buildx di deploy.yml dan ikut ke registry.
+      - name: SBOM (CycloneDX)
+        uses: anchore/sbom-action@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c # v0.24.3
+        with:
+          path: .
+          format: cyclonedx-json
+          output-file: sbom.cdx.json
+          artifact-name: sbom.cdx.json
