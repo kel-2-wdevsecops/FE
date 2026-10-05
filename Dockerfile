@@ -30,7 +30,10 @@ FROM docker.io/nginxinc/nginx-unprivileged:1.30.5-alpine@sha256:ed04ec1ff34502c3
 COPY nginx/default.conf.template /etc/nginx/templates/default.conf.template
 COPY --from=build /usr/src/app/dist /usr/share/nginx/html
 
-# Default untuk server: BE berjalan di host yang sama (port 3008).
-ENV API_UPSTREAM=http://host.docker.internal:3008
+# Default untuk server: BE di network uts-net (lihat compose.yaml).
+ENV API_UPSTREAM=http://devsecops_be:3008
+# Entrypoint image mengekspor NGINX_LOCAL_RESOLVERS dari /etc/resolv.conf
+# (DNS Docker), dipakai `resolver` di nginx/default.conf.template.
+ENV NGINX_ENTRYPOINT_LOCAL_RESOLVERS=1
 
 EXPOSE 8080
