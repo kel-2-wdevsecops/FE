@@ -51,8 +51,9 @@ on:
 env:
   # GHCR mewajibkan nama image huruf kecil semua.
   IMAGE_NAME: ghcr.io/kel-2-wdevsecops/fe
-  # Port FE di host server (compose.yaml), dipakai health check deploy.
-  APP_PORT: 3009
+  # Port nginx di DALAM container. Tidak di-publish ke host (lihat
+  # compose.yaml); health check memakainya lewat `docker compose exec`.
+  APP_PORT: 8080
 
 jobs:
   build:
@@ -321,15 +322,31 @@ jobs:
             Write-Host "FE_TAG=$tag"
           }
 
-          # Sehat = /version.json menjawab dan, kalau $expected diisi, versinya
-          # sama: tanpa cek versi, container lama yang masih jalan pun lolos.
+          # Network bersama dengan BE, cloudflared, dan MySQL (lihat
+          # compose.yaml). Dibuat kalau belum ada, supaya `compose up` pertama
+          # tidak gagal. "Continue": `network inspect` yang gagal menulis ke
+          # stderr, dan di Windows PowerShell 5.1 itu menjadi error yang
+          # menghentikan script kalau preferensinya "Stop".
+          function Initialize-Network {
+            $ErrorActionPreference = "Continue"
+            docker network inspect uts-net *> $null
+            if ($LASTEXITCODE -ne 0) {
+              Invoke-Docker network create uts-net | Out-Null
+              Write-Host "Network uts-net dibuat."
+            }
+          }
+
+          # Health check dari DALAM container (wget BusyBox bawaan Alpine),
+          # karena port FE tidak di-publish ke host. Sehat = /version.json
+          # menjawab dan, kalau $expected diisi, versinya sama: tanpa cek
+          # versi, container lama yang masih jalan pun lolos.
           function Test-Health([string]$expected, [int]$attempts) {
-            # Container yang sedang restart membuat curl gagal dan menulis ke
+            # Container yang sedang restart membuat exec gagal dan menulis ke
             # stderr; jangan sampai itu menghentikan script.
             $ErrorActionPreference = "Continue"
             for ($i = 1; $i -le $attempts; $i++) {
               Start-Sleep -Seconds 5
-              $body = curl.exe -fsS --max-time 5 "http://localhost:$env:APP_PORT/version.json"
+              $body = docker compose exec -T devsecops_fe wget -q -T 5 -O - "http://127.0.0.1:$env:APP_PORT/version.json"
               if ($LASTEXITCODE -ne 0) { Write-Host "Percobaan ${i}: belum merespons."; continue }
               $data = $null
               try { $data = ($body | Out-String) | ConvertFrom-Json } catch { }
@@ -346,7 +363,8 @@ jobs:
           #    lokal :previous menjaganya dari pembersihan image di bawah.
           $rollbackTag = $null
           $prevImageId = $null
-          $cid = docker compose ps -q FE
+          Initialize-Network
+          $cid = docker compose ps -q devsecops_fe
           if ($LASTEXITCODE -eq 0 -and $cid) {
             $prevImageId = (docker inspect --format '{{.Image}}' "$cid").Trim()
             # Label dibaca sebagai JSON: Windows PowerShell 5.1 membuang tanda
@@ -374,7 +392,10 @@ jobs:
           Invoke-Docker pull "${image}@$env:IMAGE_DIGEST"
           Invoke-Docker tag "${image}@$env:IMAGE_DIGEST" "${image}:$env:VERSION"
           Set-ImageTag $env:VERSION
-          Invoke-Docker compose up -d --pull never FE
+          # --remove-orphans: container service yang sudah tidak ada di
+          # compose.yaml (mis. "FE" sebelum diganti nama) ikut dihapus, supaya
+          # tidak terus berjalan di latar belakang.
+          Invoke-Docker compose up -d --pull never --remove-orphans devsecops_fe
 
           if (Test-Health $env:VERSION 12) {
             # 3. Bersihkan image FE lama, sisakan yang jalan sekarang dan
@@ -393,7 +414,7 @@ jobs:
 
           Write-Host "::error::v$env:VERSION tidak sehat setelah 1 menit."
           $ErrorActionPreference = "Continue"
-          docker compose logs --tail 100 FE
+          docker compose logs --tail 100 devsecops_fe
           $ErrorActionPreference = "Stop"
 
           # 4. Rollback. Image target sudah ada di server.
@@ -403,7 +424,7 @@ jobs:
           }
           Write-Host "Rollback ke :$rollbackTag."
           Set-ImageTag $rollbackTag
-          Invoke-Docker compose up -d --pull never FE
+          Invoke-Docker compose up -d --pull never devsecops_fe
           if (Test-Health $null 12) {
             Set-Result "rolled-back:$rollbackTag"
           } else {

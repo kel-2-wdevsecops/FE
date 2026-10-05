@@ -68,7 +68,7 @@ Aturan:
 Image produksi berisi nginx-unprivileged (non-root, port 8080) dan hasil build statis:
 - **Header keamanan** (`nginx/default.conf.template`): CSP ketat (script dan style hanya dari origin sendiri, tanpa `'unsafe-inline'`), `X-Frame-Options: DENY`, `nosniff`, `Referrer-Policy`, `Permissions-Policy`.
 - **Fallback SPA**: semua route dijawab `index.html` (tidak di-cache). Aset ber-hash di-cache selamanya.
-- **Proxy `/api/`** ke BE (`API_UPSTREAM`, default `http://host.docker.internal:3008`).
+- **Proxy `/api/`** ke BE (`API_UPSTREAM`, default `http://devsecops_be:3008` di network `uts-net`). Nama BE di-resolve ulang saat runtime (`resolver`), jadi FE tidak perlu di-restart setelah BE di-deploy ulang, dan tetap bisa start walau BE belum ada.
 - `/version.json` dipakai health check deploy.
 
 ## CI/CD
@@ -84,6 +84,7 @@ Deploy **hanya** terjadi saat PR rilis di-merge. Pesan commit wajib Conventional
 
 Server: self-hosted runner Windows. Folder FE terpisah dari BE: `D:\.server\kuliah\d4\devsecops\uts\fe`. Workflow membuatnya sendiri dan menyalin `compose.yaml` ke sana.
 
-1. Pastikan BE sudah jalan di port 3008 host yang sama. FE di-publish di port **3009**.
-2. Di BE, set `TRUST_PROXY=1`. Semua request API datang lewat nginx FE, jadi tanpa ini rate limiter BE menganggap semua pengguna ber-IP sama.
-3. Secret `NTFY_TOPIC` (opsional) dan pengaturan Actions sama dengan repo BE. "Allow GitHub Actions to create and approve pull requests" harus menyala untuk release-please.
+1. FE, BE, cloudflared, dan MySQL berada di network Docker `uts-net` (topologi lengkapnya di README BE). Workflow deploy membuat network itu kalau belum ada.
+2. **Tidak ada port yang di-publish ke host.** Arahkan public hostname di Cloudflare Tunnel ke `http://devsecops_fe:8080`. Health check deploy berjalan di dalam container (`docker compose exec`).
+3. BE memakai `BEHIND_CLOUDFLARE=true` dan membaca IP pengunjung dari header `CF-Connecting-IP` yang diteruskan nginx. Karena itu FE tidak boleh bisa dijangkau tanpa lewat Cloudflare.
+4. Secret `NTFY_TOPIC` (opsional) dan pengaturan Actions sama dengan repo BE. "Allow GitHub Actions to create and approve pull requests" harus menyala untuk release-please.
